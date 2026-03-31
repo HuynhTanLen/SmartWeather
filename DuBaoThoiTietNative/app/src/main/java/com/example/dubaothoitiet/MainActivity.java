@@ -35,8 +35,10 @@ public class MainActivity extends AppCompatActivity {
     Button btnShowMore;
     DailyAdapter dailyAdapter;
     boolean isExpanded = false;
+    
+    // Database Helper
+    WeatherDbHelper dbHelper;
 
-    // Các thẻ chi tiết
     View cardFeelsLike, cardWind, cardHumidity, cardRain;
 
     private static final String SERVER_URL = "https://sourish-petrina-saturnine.ngrok-free.dev/api/thoitiet_full";
@@ -54,7 +56,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Ánh xạ view chính
+        // Khởi tạo Database
+        dbHelper = new WeatherDbHelper(this);
+
         tvCityName = findViewById(R.id.tvCity);
         tvCurrentTemp = findViewById(R.id.tvCurrentTemp);
         tvWeatherDescription = findViewById(R.id.tvWeatherDescription);
@@ -62,7 +66,6 @@ public class MainActivity extends AppCompatActivity {
         tvMainAdvice = findViewById(R.id.tvMainAdvice);
         btnShowMore = findViewById(R.id.btnShowMore);
         
-        // Ánh xạ các nút ở thanh top bar
         btnMenu = findViewById(R.id.btnMenu);
         btnSearch = findViewById(R.id.btnSearch);
         layoutCity = findViewById(R.id.layoutCity);
@@ -78,7 +81,6 @@ public class MainActivity extends AppCompatActivity {
         rvHourly.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         rvDaily.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
 
-        // Cài đặt sự kiện click cho các nút mới
         if (btnMenu != null) {
             btnMenu.setOnClickListener(v -> Toast.makeText(this, "Menu đang được phát triển", Toast.LENGTH_SHORT).show());
         }
@@ -87,7 +89,6 @@ public class MainActivity extends AppCompatActivity {
             btnSearch.setOnClickListener(v -> Toast.makeText(this, "Tìm kiếm đang được phát triển", Toast.LENGTH_SHORT).show());
         }
         
-        // Nhấn vào khu vực tên thành phố để refresh dữ liệu
         if (layoutCity != null) {
             layoutCity.setOnClickListener(v -> {
                 Toast.makeText(this, "Đang cập nhật...", Toast.LENGTH_SHORT).show();
@@ -168,6 +169,9 @@ public class MainActivity extends AppCompatActivity {
                                     item.optString("icon", "01d")
                             ));
                         }
+                        
+                        // --- LƯU VÀO SQLITE ---
+                        dbHelper.saveDailyWeather(listDaily);
 
                         runOnUiThread(() -> {
                             tvCityName.setText(cityName);
