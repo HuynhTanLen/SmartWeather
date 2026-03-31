@@ -7,12 +7,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import recall_score
 import datetime
 import joblib
+from tensorflow.keras.models import load_model
 from flask import Flask, jsonify, request
 
 print("==================================================")
-print("🚀 HỆ THỐNG AI & API SERVER 24H - NHÓM SKYS")
+print("🚀 HỆ THỐNG AI & API SERVER 24H")
 print("==================================================\n")
-
+lstm_model = load_model('weather_lstm.h5')
+scaler_lstm = joblib.load('scaler_lstm.pkl')
 # ==========================================
 # BƯỚC 1: ETL & LÀM SẠCH DỮ LIỆU (Giữ nguyên logic cũ)
 # ==========================================
@@ -120,53 +122,59 @@ app = Flask(__name__)
 @app.route('/api/thoitiet_full', methods=['GET'])
 def thoitiet_full():
     try:
-        # Gọi API với múi giờ Asia/Bangkok chuẩn Việt Nam
-        url = f"https://api.open-meteo.com/v1/forecast?latitude=11.03&longitude=106.80&hourly=temperature_2m,relative_humidity_2m,windspeed_10m,precipitation,uv_index&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FBangkok&forecast_days=15"
-        res = requests.get(url).json()
+        # 1. URL chuẩn (Đã thêm precipitation_probability và windspeed_10m_max)
+        url = "https://api.open-meteo.com/v1/forecast?latitude=11.03&longitude=106.80&hourly=temperature_2m,relative_humidity_2m,windspeed_10m,precipitation,uv_index,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=Asia%2FBangkok&forecast_days=15"
 
-        # Lấy giờ hiện tại của hệ thống (Ví dụ: 21h)
+        response = requests.get(url, timeout=10)
+        res = response.json()
+
+        # Kiểm tra nếu API trả về lỗi
+        if 'hourly' not in res:
+            return jsonify({'status': 'error', 'message': 'API Open-Meteo không trả về dữ liệu'}), 500
+
+        # --- PHẦN 1: XỬ LÝ HOURLY (Dự báo 24h) ---
         now_hour = datetime.datetime.now().hour
-        max_hourly = len(res['hourly']['time'])
         hourly_data = []
-        # Chạy vòng lặp từ giờ hiện tại trở đi (lấy đủ 24 tiếng tiếp theo)
-        for i in range(now_hour, min(now_hour + 24, max_hourly)):
+        # Lấy tối đa 24 giờ tính từ giờ hiện tại
+        for i in range(now_hour, min(now_hour + 24, len(res['hourly']['time']))):
             t = res['hourly']['temperature_2m'][i]
             h = res['hourly']['relative_humidity_2m'][i]
             w = res['hourly']['windspeed_10m'][i]
             p = res['hourly']['precipitation'][i]
             u = res['hourly']['uv_index'][i]
+            prob = res['hourly'].get('precipitation_probability', [0] * 168)[i]
 
             # Dự báo AI
-            thong_so = scaler.transform([[t, h, w, p, u]])
-            nhan = int(best_rf.predict(thong_so)[0])
-            # 1. Lấy xác suất mưa từ API (Vệ tinh)
-            prob_api = res['hourly'].get('precipitation_probability', [None] * max_hourly)[i]
-
-            # 2. KIỂM TRA: Nếu API có dữ liệu thì dùng, nếu KHÔNG CÓ (None) mới dùng hàm tự tính
-            if prob_api is not None:
-                pt_mua_cuoi_cung = prob_api
-            else:
-                # Đây là phương án dự phòng để không bao giờ bị lỗi 500
-                pt_mua_cuoi_cung = tinh_ty_le_mua(t, h, w)
-
-            # 3. Đưa biến "pt_mua_cuoi_cung" vào Gợi ý AI và JSON trả về
-            advice = goi_y_hoat_dong(t, h, w, pt_mua_cuoi_cung, u, nhan)
+            input_scaled = scaler.transform([[t, h, w, p, u]])
+            nhan = int(best_rf.predict(input_scaled)[0])
 
             hourly_data.append({
                 "gio": res['hourly']['time'][i].split("T")[1],
                 "nhiet": t,
                 "rui_ro": nhan,
-                "ty_le_mua": pt_mua_cuoi_cung,
-                "goi_y": goi_y_hoat_dong(t, h, w, pt_mua_cuoi_cung, u, nhan)
+                "ty_le_mua": prob,
+                "goi_y": goi_y_hoat_dong(t, h, w, prob, u, nhan)
             })
 
+        # --- PHẦN 2: XỬ LÝ DAILY (Dự báo 15 ngày) ---
+        # ĐẶT NGOÀI VÒNG LẶP HOURLY
         daily_data = []
-        for i in range(15):
-            daily_data.append({
-                "ngay": res['daily']['time'][i],
-                "max": res['daily']['temperature_2m_max'][i],
-                "min": res['daily']['temperature_2m_min'][i]
-            })
+        if 'daily' in res:
+            today = datetime.datetime.now().date()
+            for j in range(len(res['daily']['time'])):
+                raw_date = res['daily']['time'][j]
+                api_date = datetime.datetime.strptime(raw_date, "%Y-%m-%d").date()
+                diff = (api_date - today).days
+
+                fmt_date = "Hôm nay" if diff == 0 else "Ngày mai" if diff == 1 else api_date.strftime("%d/%m")
+
+                daily_data.append({
+                    "ngay": fmt_date,
+                    "max": res['daily']['temperature_2m_max'][j],
+                    "min": res['daily']['temperature_2m_min'][j],
+                    "mua_sum": res['daily'].get('precipitation_sum', [0] * 15)[j],
+                    "gio_max": res['daily'].get('windspeed_10m_max', [0] * 15)[j]
+                })
 
         return jsonify({
             'status': 'success',
@@ -174,7 +182,9 @@ def thoitiet_full():
             'hourly': hourly_data,
             'daily': daily_data
         })
+
     except Exception as e:
+        print(f"LỖI SERVER: {str(e)}")  # In ra terminal để bạn debug
         return jsonify({'status': 'error', 'message': str(e)}), 500
 if __name__ == '__main__':
     print("[4/4] 🟢 SERVER ĐÃ MỞ (Cổng 5000). Sẵn sàng phục vụ App Android!")
