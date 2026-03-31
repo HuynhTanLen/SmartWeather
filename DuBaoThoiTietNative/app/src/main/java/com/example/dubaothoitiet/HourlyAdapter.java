@@ -4,9 +4,13 @@ import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.bumptech.glide.Glide;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -16,52 +20,60 @@ public class HourlyAdapter extends RecyclerView.Adapter<HourlyAdapter.ViewHolder
 
     public HourlyAdapter(JSONArray data) { this.data = data; }
 
+    @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_hourly, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         try {
             JSONObject item = data.getJSONObject(position);
-            holder.tvGio.setText(item.getString("gio"));
-            holder.tvNhietDo.setText(item.getDouble("nhiet") + "°"); // Đổi thành "nhiet" cho khớp Python
+            
+            // Đổ dữ liệu giờ và nhiệt độ
+            holder.tvGio.setText(item.optString("gio", "00:00"));
+            holder.tvNhietDo.setText((int)item.optDouble("nhiet", 0) + "°");
 
-            // Nếu bạn muốn hiện cả tỷ lệ mưa và rủi ro ở đây:
+            // Tải icon thời tiết theo giờ từ Server
+            String iconCode = item.optString("icon", "01d");
+            Glide.with(holder.itemView.getContext())
+                 .load("https://openweathermap.org/img/wn/" + iconCode + "@2x.png")
+                 .placeholder(android.R.drawable.ic_menu_report_image)
+                 .into(holder.imgIconHourly);
+
+            // Cập nhật các view khác nếu tồn tại và đang hiển thị (phục vụ mục đích dự phòng)
             if(holder.tvTyLeMua != null) {
-                holder.tvTyLeMua.setText("💧 " + item.getInt("ty_le_mua") + "%");
+                holder.tvTyLeMua.setText("💧 " + item.optInt("ty_le_mua", 0) + "%");
             }
 
-            int ruiRo = item.getInt("rui_ro");
-            if (holder.tvRuiRo != null) {
-                if (ruiRo == 0) {
-                    holder.tvRuiRo.setText("An Toàn");
-                    holder.tvRuiRo.setTextColor(Color.GREEN);
-                } else {
-                    holder.tvRuiRo.setText("Nguy Hiểm");
-                    holder.tvRuiRo.setTextColor(Color.RED);
-                }
+            if(holder.tvGoiY != null) {
+                holder.tvGoiY.setText(item.optString("goi_y", ""));
             }
+
         } catch (Exception e) { e.printStackTrace(); }
     }
 
     @Override
-    public int getItemCount() { return data.length(); }
+    public int getItemCount() { return data != null ? data.length() : 0; }
 
-    class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvGio, tvNhietDo, tvRuiRo,tvTyLeMua, tvGoiY;
+    static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView tvGio, tvNhietDo, tvTyLeMua, tvGoiY, tvRuiRo;
+        ImageView imgIconHourly;
         View cardBackground;
 
         public ViewHolder(View itemView) {
             super(itemView);
             tvGio = itemView.findViewById(R.id.tvGio);
             tvNhietDo = itemView.findViewById(R.id.tvNhietDo);
-            tvRuiRo = itemView.findViewById(R.id.tvRuiRo);
+            imgIconHourly = itemView.findViewById(R.id.imgIconHourly); // Thêm ánh xạ icon
             cardBackground = itemView.findViewById(R.id.cardBackground);
+            
+            // Các view ẩn trong XML mẫu mới
             tvTyLeMua = itemView.findViewById(R.id.tvTyLeMua);
             tvGoiY = itemView.findViewById(R.id.tvGoiY);
+            tvRuiRo = itemView.findViewById(R.id.tvRuiRo);
         }
     }
 }

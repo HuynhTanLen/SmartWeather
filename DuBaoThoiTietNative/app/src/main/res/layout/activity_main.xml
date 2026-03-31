@@ -1,85 +1,210 @@
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1A1A3A">
+    android:background="@drawable/bg_weather_gradient"
+    android:fitsSystemWindows="true">
+
+    <!-- Top Bar -->
+    <ImageView
+        android:id="@+id/btnMenu"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_margin="16dp"
+        android:padding="4dp"
+        android:src="@android:drawable/ic_menu_sort_by_size"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/white" />
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/layoutCity"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="@+id/btnMenu"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/btnMenu">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@android:drawable/ic_menu_mylocation"
+            app:tint="@color/white" />
 
         <TextView
             android:id="@+id/tvCity"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Tân Uyên"
-            android:textColor="#FFF"
-            android:textSize="24sp"
-            android:textStyle="bold"/>
+            android:layout_marginStart="8dp"
+            android:text="Đang lấy vị trí..."
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
-        <androidx.cardview.widget.CardView
+    <ImageView
+        android:id="@+id/btnSearch"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_margin="16dp"
+        android:padding="4dp"
+        android:src="@android:drawable/ic_menu_search"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/white" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/layoutCity">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            app:cardBackgroundColor="#3D3D7A"
-            app:cardCornerRadius="15dp">
-            <LinearLayout
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
+
+            <!-- Main Weather Info -->
+            <ImageView
+                android:id="@+id/imgMainIcon"
+                android:layout_width="150dp"
+                android:layout_height="150dp"
+                android:layout_marginTop="20dp"
+                android:src="@android:drawable/ic_menu_report_image"
+                android:visibility="gone" /> <!-- Ẩn icon mặc định khi không có ảnh -->
+
+            <TextView
+                android:id="@+id/tvCurrentTemp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="--"
+                android:textColor="@color/white"
+                android:textSize="80sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvWeatherDescription"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đang tải..."
+                android:textColor="@color/white"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/tvMainAdvice"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-                <TextView
-                    android:text="🤖 Gợi ý từ AI KS"
-                    android:textColor="#00E5FF"
-                    android:textStyle="bold"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <TextView
-                    android:id="@+id/tvMainAdvice"
+                android:layout_margin="16dp"
+                android:background="@drawable/bg_card_blur"
+                android:padding="12dp"
+                android:text="🤖 Gợi ý AI: Đang phân tích..."
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+            <!-- Hourly Forecast Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="#33000000"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Đang phân tích dữ liệu..."
-                    android:textColor="#FFF"
-                    android:textSize="16sp"
-                    android:layout_marginTop="8dp"/>
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-        <TextView
-            android:text="Dự báo 24h"
-            android:textColor="#BBB"
-            android:layout_marginTop="20dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvHourly"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:drawablePadding="8dp"
+                        android:text="Dự báo 24 giờ tới"
+                        android:textColor="#E0E0E0"
+                        android:textSize="14sp"
+                        app:drawableStartCompat="@android:drawable/ic_menu_recent_history"
+                        app:drawableTint="#E0E0E0" />
 
-        <TextView
-            android:text="Dự báo 15 ngày tới"
-            android:textColor="#BBB"
-            android:layout_marginTop="24dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvDaily"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:nestedScrollingEnabled="false"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvHourly"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:clipToPadding="false"
+                        android:orientation="horizontal" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-        <Button
-            android:id="@+id/btnRefresh"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Cập Nhật Dữ Liệu AI"
-            android:layout_marginTop="20dp"/>
+            <!-- Details Grid -->
+            <GridLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="16dp"
+                android:columnCount="2">
 
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+                <include android:id="@+id/cardFeelsLike" layout="@layout/layout_detail_item" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="4dp" />
+                <include android:id="@+id/cardWind" layout="@layout/layout_detail_item" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="4dp" />
+                <include android:id="@+id/cardHumidity" layout="@layout/layout_detail_item" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="4dp" />
+                <include android:id="@+id/cardRain" layout="@layout/layout_detail_item" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="4dp" />
+            </GridLayout>
+
+            <!-- Daily Forecast Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="#33000000"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:drawablePadding="8dp"
+                        android:text="Dự báo 15 ngày tới"
+                        android:textColor="#E0E0E0"
+                        android:textSize="14sp"
+                        app:drawableStartCompat="@android:drawable/ic_menu_today"
+                        app:drawableTint="#E0E0E0" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvDaily"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:nestedScrollingEnabled="false" />
+
+                    <Button
+                        android:id="@+id/btnShowMore"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:backgroundTint="#4D000000"
+                        android:text="Xem thêm"
+                        android:textColor="@color/white"
+                        app:cornerRadius="12dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
