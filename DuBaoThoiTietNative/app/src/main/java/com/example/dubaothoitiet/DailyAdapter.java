@@ -42,7 +42,7 @@ public class DailyAdapter extends RecyclerView.Adapter<DailyAdapter.ViewHolder> 
         // Cập nhật Min/Max vào 2 ô riêng biệt (Khớp với item_weather.xml mới)
         if (holder.tvTempMin != null) holder.tvTempMin.setText(day.getTempMinText());
         if (holder.tvTempMax != null) holder.tvTempMax.setText(day.getTempMaxText());
-        
+
         // Tải ảnh icon
         Glide.with(holder.itemView.getContext())
              .load(day.getIconUrl())

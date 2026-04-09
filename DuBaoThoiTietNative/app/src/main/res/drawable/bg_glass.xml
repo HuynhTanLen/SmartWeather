@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Nền bán trong suốt mô phỏng màu khói/kính -->
+    <solid android:color="#26FFFFFF" />
+    <!-- Bo góc lớn để hợp xu hướng -->
+    <corners android:radius="24dp" />
+    <!-- Viền ngoài rất mảnh, trắng -> mờ, tạo độ sâu -->
+    <stroke android:width="1dp" android:color="#4DFFFFFF" />
+</shape>
