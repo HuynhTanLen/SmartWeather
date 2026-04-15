@@ -42,7 +42,8 @@ import okhttp3.Response;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
-    private static final String SERVER_URL = "http://10.0.2.2:5000/api/thoitiet_full?start_date=02/04&lat=10.762622&lon=106.660172";
+    private static final String BASE_URL = "http://10.0.2.2:5000/api/thoitiet_full";
+    private String currentCity = "Tan Uyen";
 
     private static final String[] TEMP_KEYS = {"nhiet", "temp", "temperature"};
     private static final String[] FEELS_LIKE_KEYS = {"cam_giac", "feels_like"};
@@ -103,7 +104,12 @@ public class MainActivity extends AppCompatActivity {
         loadDailyDataFromDb();
 
         if (layoutCity != null) {
-            layoutCity.setOnClickListener(v -> fetchDataFromServer());
+            layoutCity.setOnClickListener(v -> showCitySelectionDialog());
+        }
+
+        btnSearch = findViewById(R.id.btnSearch);
+        if (btnSearch != null) {
+            btnSearch.setOnClickListener(v -> showCitySelectionDialog());
         }
 
         if (btnShowMore != null) {
@@ -127,6 +133,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         checkTreePlantingStatus();
+    }
+
+    private void showCitySelectionDialog() {
+        String[] cities = {"Tan Uyen", "Ho Chi Minh", "Ha Noi", "Da Nang"};
+        new AlertDialog.Builder(this)
+            .setTitle("Chọn thành phố")
+            .setItems(cities, (dialog, which) -> {
+                currentCity = cities[which];
+                tvCityName.setText("Đang tải...");
+                fetchDataFromServer();
+            })
+            .show();
     }
 
     private void checkTreePlantingStatus() {
@@ -308,9 +326,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void fetchDataFromServer() {
+        String encodedCity = currentCity.replace(" ", "%20");
+        String finalUrl = BASE_URL + "?city=" + encodedCity;
+
         OkHttpClient client = new OkHttpClient();
         Request request = new Request.Builder()
-                .url(SERVER_URL)
+                .url(finalUrl)
                 .addHeader("ngrok-skip-browser-warning", "true")
                 .get()
                 .build();

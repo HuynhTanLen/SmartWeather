@@ -1,4 +1,5 @@
 import datetime
+import math
 from pathlib import Path
 
 import joblib
@@ -27,9 +28,13 @@ EXPECTED_COLUMNS = ["Tinh_Thanh", "Ngay_Thang", *FEATURE_COLUMNS]
 
 app = Flask(__name__)
 
-DEFAULT_CITY = "Tan Uyen"
-DEFAULT_LAT = 11.03
-DEFAULT_LON = 106.80
+# Từ điển các tỉnh thành phố
+VIETNAM_PROVINCES = {
+    "Tan Uyen": (11.03, 106.80),
+    "Ho Chi Minh": (10.823, 106.6296),
+    "Ha Noi": (21.0285, 105.8542),
+    "Da Nang": (16.0678, 108.2208)
+}
 
 best_rf = None
 scaler = None
@@ -93,28 +98,19 @@ def load_weather_dataframe(csv_path: Path = DATA_PATH) -> pd.DataFrame:
     return df
 
 
-def danh_gia_suc_khoe(row):
-    nhiet, am, gio, mua, uv = row["Nhiet_Do"], row["Do_Am"], row["Gio_kph"], row["Mua_mm"], row["Chi_So_UV"]
+def tinh_nhiet_do_cam_nhan(temp, humidity, wind_kph):
+    wind_ms = wind_kph / 3.6
+    e = (humidity / 100.0) * 6.105 * math.exp((17.27 * temp) / (237.7 + temp))
+    at = temp + 0.33 * e - 0.70 * wind_ms - 4.00
+    return round(at, 1)
+
+
+def danh_gia_suc_khoe_explicit(nhiet, am, gio, mua, uv):
     if (nhiet >= 35 and am >= 70) or (mua >= 80) or (uv >= 8) or (gio >= 60):
         return 2
     if (nhiet >= 32) or (mua >= 20) or (uv >= 6) or (gio >= 40):
         return 1
     return 0
-
-
-def tinh_ty_le_mua(nhiet, am, gio):
-    ty_le = 0
-    if am > 90:
-        ty_le += 60
-    elif am > 80:
-        ty_le += 40
-    elif am > 70:
-        ty_le += 20
-    if nhiet >= 32 and am >= 75:
-        ty_le += 20
-    if gio >= 25 and am >= 75:
-        ty_le += 15
-    return min(ty_le, 100)
 
 
 def goi_y_hoat_dong(nhiet, am, gio, ty_le_mua, uv, muc):
@@ -156,11 +152,17 @@ def train_or_load_classifier(force_retrain: bool = False):
         best_rf = joblib.load(MODEL_PATH)
         scaler = joblib.load(SCALER_PATH)
     else:
-        safe_print("[1/3] Dang xu ly va huan luyen model phan loai...")
+        safe_print("[1/3] Dang xu ly va huan luyen model Random Forest (Du doan Mua)...")
         df = load_weather_dataframe()
-        df["Nhan_Canh_Bao"] = df.apply(danh_gia_suc_khoe, axis=1)
-        X = df[FEATURE_COLUMNS]
-        y = df["Nhan_Canh_Bao"]
+        
+        # Nhãn mục tiêu: Có mưa hay không (Dựa vào lượng mưa thực tế)
+        df["Nhan_Mua"] = (df["Mua_mm"] > 0.1).astype(int)
+        
+        # Features không bao gồm Mua_mm
+        feature_rf = ["Nhiet_Do", "Do_Am", "Gio_kph", "Chi_So_UV"]
+        X = df[feature_rf]
+        y = df["Nhan_Mua"]
+        
         X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
 
         scaler = StandardScaler()
@@ -256,11 +258,15 @@ def parse_float_arg(value: str | None, default: float, name: str) -> float:
 
 
 def score_conditions(temp, humidity, wind, rain, uv):
-    rf_input = pd.DataFrame([[temp, humidity, wind, rain, uv]], columns=FEATURE_COLUMNS)
+    rf_input = pd.DataFrame([[temp, humidity, wind, uv]], columns=["Nhiet_Do", "Do_Am", "Gio_kph", "Chi_So_UV"])
     scaled_input = scaler.transform(rf_input)
-    nhan = int(best_rf.predict(scaled_input)[0])
-    prob = int(tinh_ty_le_mua(temp, humidity, wind))
-    return nhan, prob
+    
+    probs = best_rf.predict_proba(scaled_input)[0]
+    prob_mua = int(probs[1] * 100) if len(probs) > 1 else (100 if best_rf.predict(scaled_input)[0] == 1 else 0)
+    
+    nhan_rui_ro = danh_gia_suc_khoe_explicit(temp, humidity, wind, rain, uv)
+    
+    return nhan_rui_ro, prob_mua
 
 
 def build_daily_humidity_lookup(hourly: dict) -> dict[str, float]:
@@ -311,6 +317,7 @@ def build_hourly_from_api(hourly, now):
                 "gio_kph": round(w, 1),
                 "mua_mm": round(p, 1),
                 "chi_so_uv": round(u, 1),
+                "cam_giac": tinh_nhiet_do_cam_nhan(t, h, w),
                 "rui_ro": nhan,
                 "ty_le_mua": prob,
                 "goi_y": goi_y_hoat_dong(t, h, w, prob, u, nhan),
@@ -376,6 +383,7 @@ def build_hourly_from_lstm(hourly, now):
                 "gio_kph": round(w, 1),
                 "mua_mm": round(p, 1),
                 "chi_so_uv": round(u, 1),
+                "cam_giac": tinh_nhiet_do_cam_nhan(t, h, w),
                 "rui_ro": nhan,
                 "ty_le_mua": prob,
                 "goi_y": goi_y_hoat_dong(t, h, w, prob, u, nhan),
@@ -433,14 +441,14 @@ def thoitiet_full():
         # Lấy tên thành phố từ App Android gửi lên, mặc định là Tan Uyen nếu không gửi
         city_name = request.args.get("city", "Tan Uyen")
         
-        # Lấy tọa độ từ cuốn từ điển. Nếu nhập sai tên, lấy mặc định Tan Uyen
+        # Lấy tọa độ từ cuốn từ điển. Nếu nhập sai tên, lấy mặc định tọa độ của Tan Uyen (11.03, 106.80)
         lat, lon = VIETNAM_PROVINCES.get(city_name, (11.03, 106.80))
         
         # Đưa tọa độ ĐỘNG vào URL
         url = (
             f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
             "&hourly=temperature_2m,relative_humidity_2m,windspeed_10m,precipitation,uv_index,precipitation_probability"
-            "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max"
+            "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,uv_index_max"
             "&timezone=Asia%2FBangkok&past_days=2"
         )
         
@@ -453,9 +461,11 @@ def thoitiet_full():
         if "hourly" not in res:
             return jsonify({"status": "error", "message": "API khong co du lieu"}), 500
 
+        # Lấy mốc thời gian hiện tại để truyền cho payload
+        start_at = parse_requested_datetime(None, None)
+
         # Trả về kèm theo tên thành phố để Android App biết nó đang hiển thị ở đâu
-        payload = build_forecast_payload(res)
-        payload["thanh_pho"] = city_name 
+        payload = build_forecast_payload(res, start_at, city_name)
         return jsonify(payload)
         
     except Exception as exc:
