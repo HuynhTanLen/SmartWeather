@@ -116,8 +116,8 @@ def blind_test(api_data, target_date, target_hour):
     predicted_y = []
     predicted_labels = []
     
-    safe_print("\n[ Gio ] | Thuc te (Temp, Hum, Nhan) | Du doan (Temp, Hum, Nhan) | Lech nhe?")
-    safe_print("-" * 80)
+    safe_print("\n[ Gio ] | Thuc te (Temp, Hum, Mua, Nhan) | Du doan (Temp, Hum, Mua, Nhan) | Lech?")
+    safe_print("-" * 90)
     
     for step in range(num_to_predict):
         input_3d = current_window_scaled.reshape(1, 24, 5)
@@ -140,8 +140,8 @@ def blind_test(api_data, target_date, target_hour):
         
         diff_mark = "x" if act_label != pred_label else ""
         
-        safe_print(f"[{time_str}] | TT: {act_t:4.1f}C, {act_h:4.1f}%, nhan {act_label} "
-                   f"| DD: {t:4.1f}C, {h:4.1f}%, nhan {pred_label} | {diff_mark}")
+        safe_print(f"[{time_str}] | TT: {act_t:4.1f}C, {act_h:4.1f}%, mua {act_p:4.1f}mm, nhan {act_label} "
+                   f"| DD: {t:4.1f}C, {h:4.1f}%, mua {p:4.1f}mm, nhan {pred_label} | {diff_mark}")
         
     y_true = np.array(actual_y)
     y_pred = np.array(predicted_y)
@@ -149,11 +149,13 @@ def blind_test(api_data, target_date, target_hour):
     f1_macro = f1_score(actual_labels, predicted_labels, average='macro', zero_division=0)
     f1_weighted = f1_score(actual_labels, predicted_labels, average='weighted', zero_division=0)
     mae_t = mean_absolute_error(y_true[:, 0], y_pred[:, 0])
+    mae_p = mean_absolute_error(y_true[:, 3], y_pred[:, 3])
     
     safe_print(f"\n==================================================")
     safe_print(f"KET QUA DANH GIA (F1-SCORE)")
     safe_print(f"==================================================")
     safe_print(f"Do lech Nhiet doi thuc te vs Du doan (MAE): {mae_t:.2f} doc C")
+    safe_print(f"Do lech Luong mua thuc te vs Du doan (MAE): {mae_p:.2f} mm")
     safe_print(f"F1-Score (Macro) Phan loai nhan RF: {f1_macro:.4f}")
     safe_print(f"F1-Score (Weighted) Phan loai: {f1_weighted:.4f}")
     
